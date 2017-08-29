@@ -1,9 +1,9 @@
 module Test.Reporter.JUnit exposing (reportBegin, reportComplete, reportSummary)
 
-import Test.Reporter.TestResults as TestResults
-import Test.Runner
 import Expect exposing (Expectation)
 import Json.Encode as Encode exposing (Value)
+import Test.Reporter.TestResults as TestResults
+import Test.Runner
 import Time exposing (Time)
 
 
@@ -54,13 +54,13 @@ encodeTest { labels, duration } expectation =
         ( classname, name ) =
             formatClassAndName labels
     in
-        Encode.object
-            ([ ( "@classname", Encode.string classname )
-             , ( "@name", Encode.string name )
-             , ( "@time", encodeTime duration )
-             ]
-                ++ (encodeTestcaseFailure expectation)
-            )
+    Encode.object
+        ([ ( "@classname", Encode.string classname )
+         , ( "@name", Encode.string name )
+         , ( "@time", encodeTime duration )
+         ]
+            ++ encodeTestcaseFailure expectation
+        )
 
 
 encodeSuite : Maybe String -> TestResults.TestResult -> List Value
@@ -69,23 +69,23 @@ encodeSuite extraFailure result =
         baseExpectations =
             List.map (encodeTest result) result.expectations
     in
-        case extraFailure of
-            Nothing ->
-                baseExpectations
+    case extraFailure of
+        Nothing ->
+            baseExpectations
 
-            Just failure ->
-                let
-                    expectation =
-                        Expect.fail failure
-                in
-                    expectation
-                        |> encodeTest
-                            { labels = []
-                            , duration = 0
-                            , expectations = [ expectation ]
-                            }
-                        |> List.singleton
-                        |> List.append baseExpectations
+        Just failure ->
+            let
+                expectation =
+                    Expect.fail failure
+            in
+            expectation
+                |> encodeTest
+                    { labels = []
+                    , duration = 0
+                    , expectations = [ expectation ]
+                    }
+                |> List.singleton
+                |> List.append baseExpectations
 
 
 encodeSuites : Maybe String -> List TestResults.TestResult -> Value
@@ -117,19 +117,24 @@ reportSummary duration autoFail results =
                 Nothing
 
         passed =
-            (List.length expectations) - failed
+            List.length expectations - failed
     in
-        Encode.object
-            [ ( "testsuite"
-              , Encode.object
-                    [ ( "@name", Encode.string "elm-test" )
-                    , ( "@package", Encode.string "elm-test" )
-                      -- Would be nice to have this provided from elm-package.json of tests
-                    , ( "@tests", Encode.int (List.length expectations) )
-                    , ( "@failed", Encode.int failed )
-                    , ( "@errors", Encode.int 0 )
-                    , ( "@time", encodeTime (List.foldl (+) 0 <| List.map .duration results) )
-                    , ( "testcase", encodeSuites extraFailure results )
-                    ]
-              )
-            ]
+    Encode.object
+        [ ( "testsuites"
+          , Encode.object
+                [ ( "testsuite"
+                  , Encode.object
+                        [ ( "@name", Encode.string "elm-test" )
+                        , ( "@package", Encode.string "elm-test" )
+
+                        -- Would be nice to have this provided from elm-package.json of tests
+                        , ( "@tests", Encode.int (List.length expectations) )
+                        , ( "@failed", Encode.int failed )
+                        , ( "@errors", Encode.int 0 )
+                        , ( "@time", encodeTime (List.foldl (+) 0 <| List.map .duration results) )
+                        , ( "testcase", encodeSuites extraFailure results )
+                        ]
+                  )
+                ]
+          )
+        ]
